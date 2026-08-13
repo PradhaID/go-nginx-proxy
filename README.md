@@ -154,6 +154,14 @@ sudo cp deploy/go-nginx-proxy.example.env /etc/go-nginx-proxy.env   # edit crede
 sudo systemctl daemon-reload && sudo systemctl enable --now go-nginx-proxy
 ```
 
+### From a git clone on the server
+
+```bash
+git pull && ./deploy/install.sh       # builds + installs + (re)starts the systemd service
+```
+
+First run creates `/etc/go-nginx-proxy.env` from the template — set `PROXY_PASSWORD` and restart. The local `deploy.sh` (gitignored, holds SSH credentials) automates the pull + install over SSH.
+
 ## Security notes
 
 - All endpoints (including the SPA) are behind HTTP Basic auth. Run behind TLS (e.g. via the proxy itself) or a trusted network.
