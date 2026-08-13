@@ -11,21 +11,23 @@ import (
 )
 
 type Status struct {
-	Running bool   `json:"running"`
-	Active  string `json:"active"`
-	Version string `json:"version"`
-	Pid     int    `json:"pid"`
-	Configs int    `json:"configs"`
-	Enabled int    `json:"enabled"`
+	Running bool    `json:"running"`
+	Active  string  `json:"active"`
+	Version string  `json:"version"`
+	Pid     int     `json:"pid"`
+	Configs int     `json:"configs"`
+	Enabled int     `json:"enabled"`
+	Metrics Metrics `json:"metrics"`
 }
 
 type Service struct {
-	cfg   *config.Config
-	shell *shell.Runner
+	cfg     *config.Config
+	shell   *shell.Runner
+	metrics *metricsCollector
 }
 
 func NewService(cfg *config.Config) *Service {
-	return &Service{cfg: cfg, shell: shell.New(cfg.Sudo)}
+	return &Service{cfg: cfg, shell: shell.New(cfg.Sudo), metrics: newMetricsCollector()}
 }
 
 func (s *Service) Version(ctx context.Context) string {
@@ -54,6 +56,7 @@ func (s *Service) Status(ctx context.Context) Status {
 	if entries, err := os.ReadDir(s.cfg.Available); err == nil {
 		st.Configs = len(entries)
 	}
+	st.Metrics = s.metrics.collect()
 	return st
 }
 

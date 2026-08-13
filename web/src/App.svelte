@@ -3,9 +3,10 @@
   import SiteList from './components/SiteList.svelte';
   import SiteForm from './components/SiteForm.svelte';
   import { api } from './lib/api.js';
+  import { realtimeSites, connectRealtime } from './lib/realtime.js';
 
   let view = $state('dashboard');
-  let sites = $state([]);
+  let sites = $derived($realtimeSites);
   let showForm = $state(false);
   let editing = $state(null);
   let toasts = $state([]);
@@ -15,7 +16,7 @@
     loading = true;
     try {
       const data = await api.listSites();
-      sites = data.sites;
+      realtimeSites.set(data.sites);
     } catch (e) {
       toast(e.message, 'error');
     } finally {
@@ -54,6 +55,7 @@
   }
 
   $effect(() => {
+    connectRealtime();
     loadSites();
   });
 </script>

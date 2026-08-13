@@ -1,23 +1,14 @@
 <script>
   import { api } from '../lib/api.js';
+  import { realtimeStatus, realtimeConnected, realtimeLoaded, refreshStatus } from '../lib/realtime.js';
 
   let { ontoast } = $props();
 
-  let status = $state(null);
-  let loading = $state(true);
+  let status = $derived($realtimeStatus);
+  let connected = $derived($realtimeConnected);
+  let loading = $derived(!$realtimeLoaded);
   let busy = $state('');
   let lastOutput = $state('');
-
-  async function load() {
-    loading = true;
-    try {
-      status = await api.nginxStatus();
-    } catch (e) {
-      ontoast?.(e.message, 'error');
-    } finally {
-      loading = false;
-    }
-  }
 
   async function run(action, label) {
     busy = label;
@@ -30,15 +21,15 @@
       ontoast?.(`${e.message}${lastOutput ? `\n${lastOutput}` : ''}`, 'error');
     } finally {
       busy = '';
-      load();
+      refreshStatus();
     }
   }
 
-  $effect(() => {
-    load();
-    const id = setInterval(load, 10000);
-    return () => clearInterval(id);
-  });
+  function fmtKB(kb) {
+    if (!kb && kb !== 0) return '—';
+    if (kb >= 1024 * 1024) return (kb / 1024 / 1024).toFixed(2) + ' GB';
+    return (kb / 1024).toFixed(1) + ' MB';
+  }
 </script>
 
 <div class="page-head">
@@ -46,9 +37,14 @@
     <h1>Dashboard</h1>
     <p>Control and monitor the nginx service.</p>
   </div>
-  <button class="btn" onclick={load} disabled={loading}>
-    {loading ? 'Refreshing…' : 'Refresh'}
-  </button>
+  <div class="head-actions">
+    <span class="pill pill-muted" class:pill-green={connected} title={connected ? 'live updates connected' : 'realtime disconnected'}>
+      {connected ? '● live' : '○ offline'}
+    </span>
+    <button class="btn" onclick={refreshStatus} disabled={loading}>
+      {loading ? 'Refreshing…' : 'Refresh'}
+    </button>
+  </div>
 </div>
 
 {#if status}
@@ -81,6 +77,28 @@
       <div class="stat-label">Enabled</div>
       <div class="stat-value">{status.enabled ?? 0}</div>
       <div class="stat-sub">symlinks in sites-enabled</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card stat">
+      <div class="stat-label">CPU</div>
+      <div class="stat-value">{(status.metrics?.cpuPercent ?? 0).toFixed(1)}<span class="unit">%</span></div>
+      <div class="meter"><div class="meter-fill" style="width:{Math.min(status.metrics?.cpuPercent ?? 0, 100)}%"></div></div>
+      <div class="stat-sub">{status.metrics?.procs ?? 0} nginx process{status.metrics?.procs === 1 ? '' : 'es'}</div>
+    </div>
+
+    <div class="card stat">
+      <div class="stat-label">Memory</div>
+      <div class="stat-value">{fmtKB(status.metrics?.memKB)}</div>
+      <div class="meter"><div class="meter-fill" style="width:{Math.min(status.metrics?.memPercent ?? 0, 100)}%"></div></div>
+      <div class="stat-sub">
+        {#if status.metrics?.memTotalKB}
+          {(status.metrics?.memPercent ?? 0).toFixed(1)}% of {fmtKB(status.metrics.memTotalKB)}
+        {:else}
+          nginx resident set size
+        {/if}
+      </div>
     </div>
   </div>
 
@@ -120,6 +138,33 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 24px;
+  }
+
+  .head-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .unit {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  .meter {
+    height: 6px;
+    background: var(--bg);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 6px 0;
+  }
+
+  .meter-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-dim));
+    border-radius: 999px;
+    transition: width 0.4s ease;
   }
 
   .page-head p {

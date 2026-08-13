@@ -12,23 +12,26 @@ import (
 )
 
 type Server struct {
-	cfg     *config.Config
-	manager *nginx.Manager
-	service *nginx.Service
-	certbot *certbot.Certbot
-	mux     *http.ServeMux
+	cfg      *config.Config
+	manager  *nginx.Manager
+	service  *nginx.Service
+	certbot  *certbot.Certbot
+	realtime *realtimeHub
+	mux      *http.ServeMux
 }
 
 func New(cfg *config.Config, staticFS http.Handler) *Server {
 	s := &Server{
-		cfg:     cfg,
-		manager: nginx.NewManager(cfg),
-		service: nginx.NewService(cfg),
-		certbot: certbot.New(cfg),
-		mux:     http.NewServeMux(),
+		cfg:      cfg,
+		manager:  nginx.NewManager(cfg),
+		service:  nginx.NewService(cfg),
+		certbot:  certbot.New(cfg),
+		realtime: newRealtimeHub(),
+		mux:      http.NewServeMux(),
 	}
 
 	s.mux.HandleFunc("/api/health", s.handleHealth)
+	s.mux.HandleFunc("/api/events", s.handleEvents)
 	s.mux.HandleFunc("/api/nginx/status", s.handleNginxStatus)
 	s.mux.HandleFunc("/api/nginx/start", s.handleNginxStart)
 	s.mux.HandleFunc("/api/nginx/stop", s.handleNginxStop)
@@ -46,6 +49,7 @@ func New(cfg *config.Config, staticFS http.Handler) *Server {
 			http.NotFound(w, r)
 		})
 	}
+	s.startWatcher()
 	return s
 }
 

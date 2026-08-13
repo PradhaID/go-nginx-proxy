@@ -53,6 +53,39 @@ func TestAuth(t *testing.T) {
 	}
 }
 
+func TestSSE(t *testing.T) {
+	ts := newTestServer(t)
+	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/events", nil)
+	req.SetBasicAuth("admin", "secret")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.StatusCode)
+	}
+	if ct := res.Header.Get("Content-Type"); ct != "text/event-stream" {
+		t.Fatalf("expected text/event-stream, got %q", ct)
+	}
+	if res.Header.Get("X-Accel-Buffering") != "no" {
+		t.Fatalf("expected X-Accel-Buffering: no, got %q", res.Header.Get("X-Accel-Buffering"))
+	}
+
+	buf := make([]byte, 512)
+	n, err := res.Body.Read(buf)
+	if err != nil && err.Error() != "EOF" {
+		t.Fatalf("read: %v", err)
+	}
+	body := string(buf[:n])
+	if len(body) == 0 {
+		t.Fatal("expected initial SSE payload")
+	}
+	if !bytes.Contains(buf[:n], []byte("event: status")) {
+		t.Fatalf("expected event: status in initial payload, got %q", body)
+	}
+}
+
 func TestSitesCRUD(t *testing.T) {
 	ts := newTestServer(t)
 	do := func(method, path string, body any) (*http.Response, map[string]any) {
@@ -99,9 +132,9 @@ func TestSitesCRUD(t *testing.T) {
 	}
 
 	res, _ = do(http.MethodPut, "/api/sites/app.example.com", map[string]any{
-		"domain":   "app.example.com",
+		"domain":            "app.example.com",
 		"clientMaxBodySize": "20m",
-		"locations": site["locations"],
+		"locations":         site["locations"],
 	})
 	if res.StatusCode != http.StatusOK {
 		t.Fatalf("update: expected 200, got %d", res.StatusCode)
