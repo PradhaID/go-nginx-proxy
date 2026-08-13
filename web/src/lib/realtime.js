@@ -16,8 +16,8 @@ export function connectRealtime() {
     realtimeLoaded.set(true);
   });
   es.addEventListener('sites', (e) => {
-    realtimeSites.set(JSON.parse(e.data));
-    realtimeLoaded.set(true);
+    const data = JSON.parse(e.data);
+    realtimeSites.set(Array.isArray(data) ? data : data.sites ?? []);
   });
   es.onopen = () => realtimeConnected.set(true);
   es.onerror = () => realtimeConnected.set(false);
