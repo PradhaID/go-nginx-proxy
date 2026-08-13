@@ -45,6 +45,22 @@ sudo cp deploy/go-nginx-proxy.service "/etc/systemd/system/${SERVICE_NAME}.servi
 sudo systemctl daemon-reload
 sudo systemctl enable "$SERVICE_NAME"
 
+echo "==> installing nginx log format (proxy_logged, \$host first)"
+sudo mkdir -p /etc/nginx/conf.d
+sudo cp deploy/nginx-proxy-log.conf /etc/nginx/conf.d/nginx-proxy-log.conf
+# point the default access log at the format (idempotent)
+if ! grep -q 'proxy_logged' /etc/nginx/nginx.conf; then
+  sudo sed -i 's|access_log /var/log/nginx/access.log;|access_log /var/log/nginx/access.log proxy_logged;|' /etc/nginx/nginx.conf
+fi
+if sudo nginx -t >/dev/null 2>&1; then
+  sudo systemctl reload nginx
+  echo "==> nginx reloaded with proxy_logged format"
+else
+  echo "!! nginx -t failed; reverting log format change" >&2
+  sudo sed -i 's|access_log /var/log/nginx/access.log proxy_logged;|access_log /var/log/nginx/access.log;|' /etc/nginx/nginx.conf
+  sudo rm -f /etc/nginx/conf.d/nginx-proxy-log.conf
+fi
+
 echo "==> restarting service"
 sudo systemctl restart "$SERVICE_NAME"
 sudo systemctl --no-pager --lines=20 status "$SERVICE_NAME"

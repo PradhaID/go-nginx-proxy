@@ -43,5 +43,7 @@ export const api = {
   certRenew: (domain) => request(`/sites/${encodeURIComponent(domain)}/cert/renew`, { method: 'POST' }),
   certDelete: (domain) => request(`/sites/${encodeURIComponent(domain)}/cert`, { method: 'DELETE' }),
 
-  logs: (type, lines = 200) => request(`/logs?type=${type}&lines=${lines}`)
+  logDomains: () => request('/logs/domains'),
+  logs: (type, lines = 200, domain = '') =>
+    request(`/logs?type=${type}&lines=${lines}${domain ? `&domain=${encodeURIComponent(domain)}` : ''}`)
 };

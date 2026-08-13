@@ -11,8 +11,27 @@ import (
 )
 
 type LogLine struct {
-	Text string `json:"text"`
-	Kind string `json:"kind,omitempty"` // access: bot | human | other
+	Text   string `json:"text"`
+	Domain string `json:"domain,omitempty"` // access: host from the proxy_logged format
+	Kind   string `json:"kind,omitempty"`   // access: bot | human | other
+}
+
+var ipv4Token = regexp.MustCompile(`^[\d.]+$`)
+
+func isIPToken(tok string) bool {
+	// IPv6 addresses always contain ':', IPv4 addresses are digits+dots
+	return strings.Contains(tok, ":") || ipv4Token.MatchString(tok)
+}
+
+// ExtractDomain returns the $host field of a line written with the
+// proxy_logged format (domain first), or "" for lines that do not carry one
+// (e.g. the default combined format, which starts with the client IP).
+func ExtractDomain(line string) string {
+	fields := strings.Fields(line)
+	if len(fields) == 0 || isIPToken(fields[0]) {
+		return ""
+	}
+	return fields[0]
 }
 
 // TailLog returns up to `lines` lines from the end of the given log file.

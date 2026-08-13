@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -73,6 +74,29 @@ func (m *Manager) Get(domain string) (*Site, error) {
 		return nil, err
 	}
 	return m.load(domain)
+}
+
+// LogDirectives returns the access_log and error_log paths declared in the
+// site's config file, or "" when the site does not declare one (so it falls
+// back to the default logs). "access_log off;" is treated as unset.
+func (m *Manager) LogDirectives(domain string) (accessLog, errorLog string) {
+	data, err := os.ReadFile(m.AvailablePath(domain))
+	if err != nil {
+		return "", ""
+	}
+	return findLogDirective(data, "access_log"), findLogDirective(data, "error_log")
+}
+
+func findLogDirective(data []byte, name string) string {
+	re := regexp.MustCompile(`(?m)^\s*` + name + `\s+([^;]+);`)
+	for _, m := range re.FindAllStringSubmatch(string(data), -1) {
+		fields := strings.Fields(m[1])
+		if len(fields) == 0 || fields[0] == "off" {
+			continue
+		}
+		return fields[0]
+	}
+	return ""
 }
 
 func (m *Manager) load(domain string) (*Site, error) {

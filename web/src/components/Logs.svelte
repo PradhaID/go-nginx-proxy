@@ -1,11 +1,22 @@
 <script>
+  import { api } from '../lib/api.js';
+
   let type = $state('access'); // access | error
-  let lines = $state([]); // [{text, kind}]
+  let domain = $state(''); // '' = all domains
+  let domains = $state([]); // [{domain, accessLog, errorLog}]
+  let lines = $state([]); // [{text, domain, kind}]
   let filter = $state('');
   let showKind = $state('all'); // all | human | bot | other
   let follow = $state(true);
   let live = $state(false);
   let es = null;
+
+  $effect(() => {
+    api
+      .logDomains()
+      .then((d) => (domains = d.domains || []))
+      .catch(() => {});
+  });
 
   let counts = $derived.by(() => {
     const c = { human: 0, bot: 0, other: 0 };
@@ -21,13 +32,22 @@
     })
   );
 
+  let activeLog = $derived.by(() => {
+    if (!domain) return { access: null, error: null };
+    const d = domains.find((x) => x.domain === domain);
+    return d ? { access: d.accessLog, error: d.errorLog } : null;
+  });
+
   $effect(() => {
     const k = type;
+    const d = domain;
     if (es) es.close();
     es = null;
     lines = [];
     live = false;
-    es = new EventSource(`/api/logs/stream?type=${k}`);
+    const q = new URLSearchParams({ type: k });
+    if (d) q.set('domain', d);
+    es = new EventSource(`/api/logs/stream?${q}`);
     es.onopen = () => (live = true);
     es.onerror = () => (live = false);
     es.addEventListener('snapshot', (e) => {
@@ -83,6 +103,23 @@
   <button class="tab" class:active={type === 'error'} onclick={() => (type = 'error')}>Error</button>
 </div>
 
+<div class="domain-row">
+  <label class="dlabel">Domain</label>
+  <select class="dselect" bind:value={domain}>
+    <option value="">All domains</option>
+    {#each domains as d (d.domain)}
+      <option value={d.domain}>{d.domain}</option>
+    {/each}
+  </select>
+  <span class="dpath" title="log file for the selected view">
+    {#if type === 'access'}
+      {activeLog?.access ?? 'default access log'}
+    {:else}
+      {activeLog?.error ?? 'default error log'}
+    {/if}
+  </span>
+</div>
+
 {#if type === 'access'}
   <div class="filter-row">
     <div class="kind-filters">
@@ -112,7 +149,12 @@
             {l.kind || 'other'}
           </span>
         {/if}
-        <pre class="ltext {lineClass(l.text)}">{l.text}</pre>
+        <span class="ltext {lineClass(l.text)}">
+          {#if type === 'access' && l.domain && l.domain !== domain}
+            <span class="ldomain">{l.domain}</span>
+          {/if}
+          {l.text}
+        </span>
       </div>
     {/each}
   {/if}
@@ -141,6 +183,33 @@
     display: flex;
     gap: 6px;
     margin-bottom: 14px;
+  }
+
+  .domain-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .dlabel {
+    margin-bottom: 0;
+    font-size: 11px;
+  }
+
+  .dselect {
+    width: auto;
+    min-width: 200px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .dpath {
+    font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    color: var(--muted);
+    opacity: 0.85;
   }
 
   .tab {
@@ -246,12 +315,24 @@
   .kbadge.other { background: rgba(148, 163, 184, 0.15); color: var(--muted); }
 
   .ltext {
-    margin: 0;
+    display: block;
+    flex: 1;
     font-size: 11.5px;
     line-height: 1.55;
     white-space: pre-wrap;
     word-break: break-all;
     color: var(--muted);
+  }
+
+  .ldomain {
+    display: inline-block;
+    background: rgba(45, 212, 191, 0.12);
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 0 6px;
+    margin-right: 6px;
+    font-size: 10px;
+    font-weight: 600;
   }
 
   .ltext.err { color: var(--red); }

@@ -25,6 +25,51 @@ func TestExtractUserAgent(t *testing.T) {
 	}
 }
 
+func TestExtractDomain(t *testing.T) {
+	cases := []struct{ line, want string }{
+		{`pradha.id 104.22.93.4 [13/Aug/2026:10:31:49 +0700] "GET / HTTP/1.1" 200 16 "-" "Mozilla/5.0"`, "pradha.id"},
+		{`1.2.3.4 - - [13/Aug/2026:10:31:49 +0700] "GET / HTTP/1.1" 200 16 "-" "Mozilla/5.0"`, ""},
+		{`2001:db8::1 - - [13/Aug/2026:10:31:49 +0700] "GET / HTTP/1.1" 200 16 "-" "-"`, ""},
+		{``, ""},
+	}
+	for _, c := range cases {
+		if got := ExtractDomain(c.line); got != c.want {
+			t.Fatalf("ExtractDomain(%q) = %q, want %q", c.line, got, c.want)
+		}
+	}
+}
+
+func TestLogDirectives(t *testing.T) {
+	m := NewManager(&config.Config{Available: t.TempDir(), Enabled: t.TempDir()})
+	dir := m.cfg.Available
+	os.WriteFile(filepath.Join(dir, "own.conf"), []byte(`server {
+    listen 443 ssl;
+    server_name own.example.com;
+    access_log /var/log/nginx/own.example.com.access.log proxy_logged;
+    access_log off;
+    error_log /var/log/nginx/own.example.com.error.log warn;
+    location / { proxy_pass http://127.0.0.1:8080; }
+}`), 0o644)
+	os.WriteFile(filepath.Join(dir, "fallback.conf"), []byte(`server {
+    server_name fallback.example.com;
+    access_log off;
+    location / { proxy_pass http://127.0.0.1:8080; }
+}`), 0o644)
+
+	a, e := m.LogDirectives("own")
+	if a != "/var/log/nginx/own.example.com.access.log" || e != "/var/log/nginx/own.example.com.error.log" {
+		t.Fatalf("own: got %q %q", a, e)
+	}
+	a, e = m.LogDirectives("fallback")
+	if a != "" || e != "" {
+		t.Fatalf("fallback: expected empty, got %q %q", a, e)
+	}
+	a, e = m.LogDirectives("missing")
+	if a != "" || e != "" {
+		t.Fatalf("missing: expected empty, got %q %q", a, e)
+	}
+}
+
 func TestClassifyAccessLine(t *testing.T) {
 	cases := []struct {
 		line string
