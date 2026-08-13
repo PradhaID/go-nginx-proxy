@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -14,15 +15,21 @@ import (
 func newTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	dir := t.TempDir()
+	access := filepath.Join(dir, "access.log")
+	errorLog := filepath.Join(dir, "error.log")
+	os.WriteFile(access, []byte(
+		`1.1.1.1 - - [13/Aug/2026:10:00:00 +0700] "GET / HTTP/1.1" 200 1 "-" "curl/8.5.0"`+"\n"+
+			`2.2.2.2 - - [13/Aug/2026:10:00:01 +0700] "GET / HTTP/1.1" 200 1 "-" "Mozilla/5.0 (X11; Linux x86_64) Firefox/128.0"`+"\n"), 0o644)
+	os.WriteFile(errorLog, []byte("2026/08/13 10:00:00 [error] 123#0: connect() failed\n"), 0o644)
 	cfg := &config.Config{
 		Username:  "admin",
 		Password:  "secret",
 		Available: filepath.Join(dir, "available"),
 		Enabled:   filepath.Join(dir, "enabled"),
 		CertDir:   filepath.Join(dir, "certs"),
+		AccessLog: access,
+		ErrorLog:  errorLog,
 	}
-	cfg.Available = filepath.Join(dir, "available")
-	cfg.Enabled = filepath.Join(dir, "enabled")
 	srv := New(cfg, nil)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
@@ -50,6 +57,56 @@ func TestAuth(t *testing.T) {
 	res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", res.StatusCode)
+	}
+}
+
+func TestLogs(t *testing.T) {
+	ts := newTestServer(t)
+	do := func(q string) (*http.Response, map[string]any) {
+		req, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/logs"+q, nil)
+		req.SetBasicAuth("admin", "secret")
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		var m map[string]any
+		_ = json.NewDecoder(res.Body).Decode(&m)
+		return res, m
+	}
+
+	res, m := do("?type=access")
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.StatusCode)
+	}
+	lines := m["lines"].([]any)
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 access lines, got %d", len(lines))
+	}
+	first := lines[0].(map[string]any)
+	if first["kind"] != "bot" {
+		t.Fatalf("expected first line kind=bot, got %v", first["kind"])
+	}
+	second := lines[1].(map[string]any)
+	if second["kind"] != "human" {
+		t.Fatalf("expected second line kind=human, got %v", second["kind"])
+	}
+
+	res, m = do("?type=error")
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.StatusCode)
+	}
+	el := m["lines"].([]any)
+	if len(el) != 1 {
+		t.Fatalf("expected 1 error line, got %d", len(el))
+	}
+
+	res, m = do("?type=access&lines=1")
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.StatusCode)
+	}
+	if n := len(m["lines"].([]any)); n != 1 {
+		t.Fatalf("expected 1 line with lines=1, got %d", n)
 	}
 }
 

@@ -2,6 +2,7 @@
   import NginxStatus from './components/NginxStatus.svelte';
   import SiteList from './components/SiteList.svelte';
   import SiteForm from './components/SiteForm.svelte';
+  import Logs from './components/Logs.svelte';
   import { api } from './lib/api.js';
   import { realtimeSites, connectRealtime } from './lib/realtime.js';
 
@@ -92,6 +93,14 @@
         Sites
         <span class="count">{sites.length}</span>
       </button>
+      <button
+        class="nav-item"
+        class:active={view === 'logs'}
+        onclick={() => (view = 'logs')}
+      >
+        <span class="dot" style:background="var(--amber)"></span>
+        Logs
+      </button>
     </nav>
 
     <div class="sidebar-footer">
@@ -111,6 +120,8 @@
         onchanged={loadSites}
         ontoast={toast}
       />
+    {:else if view === 'logs'}
+      <Logs ontoast={toast} />
     {/if}
   </main>
 </div>

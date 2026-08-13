@@ -42,6 +42,9 @@ func New(cfg *config.Config, staticFS http.Handler) *Server {
 	s.mux.HandleFunc("/api/sites", s.handleSites)
 	s.mux.HandleFunc("/api/sites/", s.handleSite)
 
+	s.mux.HandleFunc("/api/logs", s.handleLogs)
+	s.mux.HandleFunc("/api/logs/stream", s.handleLogStream)
+
 	if staticFS != nil {
 		s.mux.Handle("/", staticFS)
 	} else {

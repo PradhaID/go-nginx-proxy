@@ -26,6 +26,8 @@ type Config struct {
 	CloudflareToken       string
 	CloudflareCredFile    string
 	CloudflarePropagation int
+	AccessLog             string
+	ErrorLog              string
 }
 
 func getenv(key, def string) string {
@@ -75,6 +77,8 @@ func Load() *Config {
 		CloudflareToken:       os.Getenv("PROXY_CLOUDFLARE_DNS_TOKEN"),
 		CloudflareCredFile:    getenv("PROXY_CLOUDFLARE_CREDENTIALS_FILE", "/etc/letsencrypt/cloudflare.ini"),
 		CloudflarePropagation: getenvInt("PROXY_CLOUDFLARE_PROPAGATION", 60),
+		AccessLog:             getenv("PROXY_NGINX_ACCESS_LOG", "/var/log/nginx/access.log"),
+		ErrorLog:              getenv("PROXY_NGINX_ERROR_LOG", "/var/log/nginx/error.log"),
 	}
 }
 
