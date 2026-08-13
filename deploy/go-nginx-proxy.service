@@ -10,10 +10,8 @@ EnvironmentFile=/etc/go-nginx-proxy.env
 ExecStart=/usr/local/bin/go-nginx-proxy
 Restart=on-failure
 RestartSec=3
-# hardening
-PrivateTmp=true
-ProtectSystem=strict
-ReadWritePaths=/etc/nginx /etc/letsencrypt /var/lib/letsencrypt /var/log/letsencrypt /run
+# NOTE: no ProtectSystem/ReadWritePaths here — the service shells out to
+# nginx -t / systemctl / certbot which need access to /run, /var/log, etc.
 
 [Install]
 WantedBy=multi-user.target
