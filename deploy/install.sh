@@ -40,12 +40,10 @@ if [ ! -f "$ENV_FILE" ]; then
   echo
 fi
 
-echo "==> ensuring systemd unit"
-if [ ! -f "/etc/systemd/system/${SERVICE_NAME}.service" ]; then
-  sudo cp deploy/go-nginx-proxy.service "/etc/systemd/system/${SERVICE_NAME}.service"
-  sudo systemctl daemon-reload
-  sudo systemctl enable "$SERVICE_NAME"
-fi
+echo "==> installing systemd unit"
+sudo cp deploy/go-nginx-proxy.service "/etc/systemd/system/${SERVICE_NAME}.service"
+sudo systemctl daemon-reload
+sudo systemctl enable "$SERVICE_NAME"
 
 echo "==> restarting service"
 sudo systemctl restart "$SERVICE_NAME"

@@ -11,10 +11,9 @@ ExecStart=/usr/local/bin/go-nginx-proxy
 Restart=on-failure
 RestartSec=3
 # hardening
-NoNewPrivileges=false
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/etc/nginx /etc/letsencrypt /var/lib/letsencrypt /var/log/letsencrypt
+ReadWritePaths=/etc/nginx /etc/letsencrypt /var/lib/letsencrypt /var/log/letsencrypt /run
 
 [Install]
 WantedBy=multi-user.target
