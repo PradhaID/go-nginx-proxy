@@ -1,0 +1,23 @@
+# build artifacts
+bin/
+/dist/
+
+# go
+*.test
+*.out
+
+# node
+web/node_modules/
+
+# vite build output (embedded into the Go binary)
+internal/web/dist/*
+!internal/web/dist/.gitkeep
+
+# env / secrets
+.env
+*.local
+
+# editor / os
+.DS_Store
+.idea/
+.vscode/

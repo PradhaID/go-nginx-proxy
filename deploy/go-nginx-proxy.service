@@ -1,0 +1,20 @@
+[Unit]
+Description=go-nginx-proxy - nginx reverse proxy manager
+After=network.target nginx.service
+Wants=nginx.service
+
+[Service]
+Type=simple
+User=root
+EnvironmentFile=/etc/go-nginx-proxy.env
+ExecStart=/usr/local/bin/go-nginx-proxy
+Restart=on-failure
+RestartSec=3
+# hardening
+NoNewPrivileges=false
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/etc/nginx /etc/letsencrypt /var/lib/letsencrypt /var/log/letsencrypt
+
+[Install]
+WantedBy=multi-user.target
