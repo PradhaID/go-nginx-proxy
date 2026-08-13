@@ -52,6 +52,10 @@
     loadSites();
     toast('Site deleted', 'info');
   }
+
+  $effect(() => {
+    loadSites();
+  });
 </script>
 
 <svelte:head>
